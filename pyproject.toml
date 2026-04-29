@@ -11,7 +11,8 @@ dependencies = [
 ]
 
 [project.scripts]
-translate = "commands.translate.translate:app"
+translate = "commands.translate.cli:app"
+git-commit-message = "commands.git_commit_message.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["commands*", "libs*"]

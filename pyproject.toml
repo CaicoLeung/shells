@@ -1,0 +1,25 @@
+[project]
+name = "shells"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "halo>=0.0.31",
+    "openai>=2.33.0",
+    "typer>=0.25.0",
+]
+
+[project.scripts]
+translate = "commands.translate.translate:app"
+
+[tool.setuptools.packages.find]
+include = ["commands*", "libs*"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.20.0",
+]

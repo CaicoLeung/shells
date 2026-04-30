@@ -2,7 +2,7 @@
 
 import typer
 
-from libs.llm import spinner
+from libs.spinner import spinner
 from .git import get_git_status, stage_files, commit_with_message, get_diffs, FileChange
 from .generator import generate_commit_message, create_batch_plan, generate_batch_commit_message, CommitBatch
 
@@ -17,18 +17,16 @@ def main(
 
     If staged changes exist: commits them directly.
     If no staged changes: analyzes unstaged changes and commits in batches.
-    """
-    spinner.text = "Checking git status..."
-    spinner.start()
 
+    Args:
+        dry_run: If True, show what would be done without actually committing
+    """
     try:
-        status = get_git_status()
+        with spinner("Checking git status..."):
+            status = get_git_status()
     except RuntimeError as e:
-        spinner.stop()
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
-
-    spinner.stop()
 
     if status.staged:
         _handle_staged_changes(status.staged, dry_run)
@@ -43,16 +41,20 @@ def main(
 
 
 def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> None:
+    """Handle staged changes by generating and committing.
+
+    Args:
+        staged_changes: List of staged file changes
+        dry_run: If True, don't actually commit
+    """
     paths = [c.path for c in staged_changes]
 
-    spinner.text = "Analyzing staged changes..."
-    spinner.start()
-    diffs = get_diffs(paths, staged=True)
+    with spinner("Analyzing staged changes..."):
+        diffs = get_diffs(paths, staged=True)
 
     diff_summary = f"Staged files: {', '.join(paths)}\n\n"
     diff_summary += "Diffs:\n"
     diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
-    spinner.stop()
 
     typer.echo(f"\nFound {len(staged_changes)} staged change(s)")
 
@@ -63,17 +65,13 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
         typer.echo("\n[DRY RUN] Would generate commit message and commit")
         return
 
-    spinner.text = "Generating commit message..."
-    spinner.start()
-    message = generate_commit_message(diff_summary)
-    spinner.stop()
+    with spinner("Generating commit message..."):
+        message = generate_commit_message(diff_summary)
 
     typer.echo(f"\nCommit message: {message}")
 
-    spinner.text = "Committing..."
-    spinner.start()
-    success = commit_with_message(message)
-    spinner.stop()
+    with spinner("Committing..."):
+        success = commit_with_message(message)
 
     if success:
         typer.echo("✓ Changes committed successfully")
@@ -83,12 +81,16 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
 
 
 def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) -> None:
+    """Handle unstaged changes by batching and committing.
+
+    Args:
+        unstaged_changes: List of unstaged file changes
+        dry_run: If True, don't actually commit
+    """
     paths = [c.path for c in unstaged_changes]
 
-    spinner.text = "Analyzing unstaged changes..."
-    spinner.start()
-    diffs = get_diffs(paths, staged=False)
-    spinner.stop()
+    with spinner("Analyzing unstaged changes..."):
+        diffs = get_diffs(paths, staged=False)
 
     if not diffs:
         typer.echo("No diffs found for unstaged files.")
@@ -96,10 +98,8 @@ def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) 
 
     typer.echo(f"\nFound {len(diffs)} unstaged file(s)")
 
-    spinner.text = "Planning commit batches..."
-    spinner.start()
-    plan = create_batch_plan(diffs)
-    spinner.stop()
+    with spinner("Planning commit batches..."):
+        plan = create_batch_plan(diffs)
 
     typer.echo(f"Created {len(plan.batches)} batch(es)")
 
@@ -113,7 +113,14 @@ def _process_batch(
     all_diffs: dict[str, str],
     dry_run: bool
 ) -> None:
-    """Process a single batch of changes."""
+    """Process a single batch of changes.
+
+    Args:
+        batch_num: The batch number (1-indexed)
+        batch: The CommitBatch to process
+        all_diffs: Dictionary of all file diffs
+        dry_run: If True, don't actually commit
+    """
     files, reason = batch.files, batch.reason
 
     typer.echo(f"\n--- Batch {batch_num}: {reason} ---")
@@ -123,10 +130,8 @@ def _process_batch(
         typer.echo("[DRY RUN] Would stage, generate message, and commit")
         return
 
-    spinner.text = "Staging files..."
-    spinner.start()
-    success = stage_files(files)
-    spinner.stop()
+    with spinner("Staging files..."):
+        success = stage_files(files)
 
     if not success:
         typer.echo(f"✗ Failed to stage files for batch {batch_num}", err=True)
@@ -134,17 +139,13 @@ def _process_batch(
 
     combined_diff = "\n".join(all_diffs[f] for f in files if f in all_diffs)
 
-    spinner.text = "Generating commit message..."
-    spinner.start()
-    message = generate_batch_commit_message(reason, combined_diff)
-    spinner.stop()
+    with spinner("Generating commit message..."):
+        message = generate_batch_commit_message(reason, combined_diff)
 
     typer.echo(f"Commit message: {message}")
 
-    spinner.text = "Committing..."
-    spinner.start()
-    success = commit_with_message(message)
-    spinner.stop()
+    with spinner("Committing..."):
+        success = commit_with_message(message)
 
     if success:
         typer.echo(f"✓ Batch {batch_num} committed successfully")

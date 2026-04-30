@@ -6,6 +6,11 @@ import openai
 from halo import Halo
 from openai.types.chat import ChatCompletionMessageParam
 
+spinner = Halo(text="", spinner="dots")
+
+
+__all__ = ["LLM", "GenerationResult", "spinner"]
+
 
 @dataclass
 class GenerationResult:
@@ -48,16 +53,12 @@ class LLM:
             model=model,
             messages=messages,
         ) as stream:
-            for event in stream:
-                if event.type == "content.delta":
-                    print(event.delta, end="", flush=True)
-
-        final = stream.get_final_completion()
-        usage = final.usage
-        return GenerationResult(
-            content=final.choices[0].message.content or "",
-            model=final.model,
-            prompt_tokens=usage.prompt_tokens if usage else 0,
-            completion_tokens=usage.completion_tokens if usage else 0,
-            total_tokens=usage.total_tokens if usage else 0,
-        )
+            final = stream.get_final_completion()
+            usage = final.usage
+            return GenerationResult(
+                content=final.choices[0].message.content or "",
+                model=final.model,
+                prompt_tokens=usage.prompt_tokens if usage else 0,
+                completion_tokens=usage.completion_tokens if usage else 0,
+                total_tokens=usage.total_tokens if usage else 0,
+            )

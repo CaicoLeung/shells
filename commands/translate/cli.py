@@ -1,7 +1,6 @@
 import typer
-from halo import Halo
 
-from libs.llm import LLM, GenerationResult
+from libs.llm import LLM, GenerationResult, spinner
 
 from .prompt import prompt
 
@@ -17,7 +16,7 @@ def translate(text: str) -> GenerationResult:
 def main(
     text: str = typer.Argument(..., help="Text to translate"),
 ) -> None:
-    spinner = Halo(text="Thinking...", spinner="dots")
+    spinner.text = "Thinking..."
     spinner.start()
     result = translate(text)
     spinner.stop()

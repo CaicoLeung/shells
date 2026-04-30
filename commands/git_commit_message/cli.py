@@ -1,8 +1,8 @@
 """CLI entry point for git-commit-message command."""
 
 import typer
-from halo import Halo
 
+from libs.llm import spinner
 from .git import get_git_status, stage_files, commit_with_message, get_diffs, FileChange
 from .generator import generate_commit_message, create_batch_plan, generate_batch_commit_message, CommitBatch
 
@@ -18,7 +18,7 @@ def main(
     If staged changes exist: commits them directly.
     If no staged changes: analyzes unstaged changes and commits in batches.
     """
-    spinner = Halo(text="Checking git status...", spinner="dots")
+    spinner.text = "Checking git status..."
     spinner.start()
 
     try:
@@ -45,12 +45,14 @@ def main(
 def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> None:
     paths = [c.path for c in staged_changes]
 
-    with Halo(text="Analyzing staged changes...", spinner="dots"):
-        diffs = get_diffs(paths, staged=True)
+    spinner.text = "Analyzing staged changes..."
+    spinner.start()
+    diffs = get_diffs(paths, staged=True)
 
-        diff_summary = f"Staged files: {', '.join(paths)}\n\n"
-        diff_summary += "Diffs:\n"
-        diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
+    diff_summary = f"Staged files: {', '.join(paths)}\n\n"
+    diff_summary += "Diffs:\n"
+    diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
+    spinner.stop()
 
     typer.echo(f"\nFound {len(staged_changes)} staged change(s)")
 
@@ -61,13 +63,17 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
         typer.echo("\n[DRY RUN] Would generate commit message and commit")
         return
 
-    with Halo(text="Generating commit message...", spinner="dots"):
-        message = generate_commit_message(diff_summary)
+    spinner.text = "Generating commit message..."
+    spinner.start()
+    message = generate_commit_message(diff_summary)
+    spinner.stop()
 
     typer.echo(f"\nCommit message: {message}")
 
-    with Halo(text="Committing...", spinner="dots"):
-        success = commit_with_message(message)
+    spinner.text = "Committing..."
+    spinner.start()
+    success = commit_with_message(message)
+    spinner.stop()
 
     if success:
         typer.echo("✓ Changes committed successfully")
@@ -79,8 +85,10 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
 def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) -> None:
     paths = [c.path for c in unstaged_changes]
 
-    with Halo(text="Analyzing unstaged changes...", spinner="dots"):
-        diffs = get_diffs(paths, staged=False)
+    spinner.text = "Analyzing unstaged changes..."
+    spinner.start()
+    diffs = get_diffs(paths, staged=False)
+    spinner.stop()
 
     if not diffs:
         typer.echo("No diffs found for unstaged files.")
@@ -88,8 +96,10 @@ def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) 
 
     typer.echo(f"\nFound {len(diffs)} unstaged file(s)")
 
-    with Halo(text="Planning commit batches...", spinner="dots"):
-        plan = create_batch_plan(diffs)
+    spinner.text = "Planning commit batches..."
+    spinner.start()
+    plan = create_batch_plan(diffs)
+    spinner.stop()
 
     typer.echo(f"Created {len(plan.batches)} batch(es)")
 
@@ -113,8 +123,10 @@ def _process_batch(
         typer.echo("[DRY RUN] Would stage, generate message, and commit")
         return
 
-    with Halo(text="Staging files...", spinner="dots"):
-        success = stage_files(files)
+    spinner.text = "Staging files..."
+    spinner.start()
+    success = stage_files(files)
+    spinner.stop()
 
     if not success:
         typer.echo(f"✗ Failed to stage files for batch {batch_num}", err=True)
@@ -122,13 +134,17 @@ def _process_batch(
 
     combined_diff = "\n".join(all_diffs[f] for f in files if f in all_diffs)
 
-    with Halo(text="Generating commit message...", spinner="dots"):
-        message = generate_batch_commit_message(reason, combined_diff)
+    spinner.text = "Generating commit message..."
+    spinner.start()
+    message = generate_batch_commit_message(reason, combined_diff)
+    spinner.stop()
 
     typer.echo(f"Commit message: {message}")
 
-    with Halo(text="Committing...", spinner="dots"):
-        success = commit_with_message(message)
+    spinner.text = "Committing..."
+    spinner.start()
+    success = commit_with_message(message)
+    spinner.stop()
 
     if success:
         typer.echo(f"✓ Batch {batch_num} committed successfully")

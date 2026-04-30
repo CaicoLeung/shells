@@ -51,7 +51,7 @@ def _run_git_command(args: list[str]) -> str:
         The stdout output from the git command as a string
 
     Raises:
-        RuntimeError: If git reports it's not a repository
+        RuntimeError: If git command fails
     """
     result = subprocess.run(
         ['git'] + args,
@@ -59,8 +59,14 @@ def _run_git_command(args: list[str]) -> str:
         text=True,
         check=False
     )
-    if result.returncode != 0 and 'not a git repository' in result.stderr.lower():
-        raise RuntimeError("Not a git repository")
+
+    if result.returncode != 0:
+        stderr_lower = result.stderr.lower()
+        if 'not a git repository' in stderr_lower:
+            raise RuntimeError("Not a git repository")
+        # Generic error for other git failures
+        raise RuntimeError(f"Git command failed: {result.stderr.strip()}")
+
     return result.stdout.strip()
 
 

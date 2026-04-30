@@ -5,9 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "halo>=0.0.31",
+    "rich>=13.9.0",      # Replaces halo
     "openai>=2.33.0",
     "typer>=0.25.0",
+    "pydantic-settings>=2.6.0",  # For configuration management
 ]
 
 [project.scripts]
@@ -24,4 +25,5 @@ package = true
 dev = [
     "pyinstaller>=6.20.0",
     "pytest>=9.0.3",
+    "ruff>=0.8.0",       # For formatting and linting
 ]

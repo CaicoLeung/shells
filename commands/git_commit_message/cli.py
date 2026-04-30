@@ -3,7 +3,7 @@
 import typer
 from halo import Halo
 
-from .git import get_git_status, stage_files, commit_with_message, get_unstaged_diffs, get_staged_diffs, FileChange
+from .git import get_git_status, stage_files, commit_with_message, get_diffs, FileChange
 from .generator import generate_commit_message, create_batch_plan, generate_batch_commit_message, CommitBatch
 
 app = typer.Typer(help="Generate Conventional Commits using AI")
@@ -30,31 +30,24 @@ def main(
 
     spinner.stop()
 
-    # Case 1: We have staged changes - commit them directly
     if status.staged:
         _handle_staged_changes(status.staged, dry_run)
         return
 
-    # Case 2: No staged changes - analyze and batch unstaged
     if status.unstaged:
         _handle_unstaged_changes(status.unstaged, dry_run)
         return
 
-    # Case 3: No changes at all
     typer.echo("No changes to commit.")
     raise typer.Exit(0)
 
 
 def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> None:
-    """Handle the case where we have staged changes."""
-    # Get combined diff of all staged changes
     paths = [c.path for c in staged_changes]
 
     with Halo(text="Analyzing staged changes...", spinner="dots") as spinner:
-        # Get actual staged diffs for the LLM
-        diffs = get_staged_diffs(paths)
+        diffs = get_diffs(paths, staged=True)
 
-        # Build combined diff message for LLM
         diff_summary = f"Staged files: {', '.join(paths)}\n\n"
         diff_summary += "Diffs:\n"
         diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
@@ -69,14 +62,12 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
             typer.echo("\n[DRY RUN] Would generate commit message and commit")
             return
 
-        # Generate commit message
         with Halo(text="Generating commit message...", spinner="dots") as msg_spinner:
             message = generate_commit_message(diff_summary)
             msg_spinner.stop()
 
         typer.echo(f"\nCommit message: {message}")
 
-        # Commit
         with Halo(text="Committing...", spinner="dots") as commit_spinner:
             success = commit_with_message(message)
             commit_spinner.stop()
@@ -89,12 +80,10 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
 
 
 def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) -> None:
-    """Handle the case where we have only unstaged changes."""
     paths = [c.path for c in unstaged_changes]
 
     with Halo(text="Analyzing unstaged changes...", spinner="dots") as spinner:
-        # Get diffs for all unstaged files
-        diffs = get_unstaged_diffs(paths)
+        diffs = get_diffs(paths, staged=False)
         spinner.stop()
 
     if not diffs:
@@ -103,7 +92,6 @@ def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) 
 
     typer.echo(f"\nFound {len(diffs)} unstaged file(s)")
 
-    # Create batch plan
     with Halo(text="Planning commit batches...", spinner="dots") as spinner:
         plan = create_batch_plan(diffs)
         spinner.stop()
@@ -130,7 +118,6 @@ def _process_batch(
         typer.echo("[DRY RUN] Would stage, generate message, and commit")
         return
 
-    # Stage the files
     with Halo(text="Staging files...", spinner="dots") as spinner:
         success = stage_files(files)
         spinner.stop()
@@ -139,17 +126,14 @@ def _process_batch(
         typer.echo(f"✗ Failed to stage files for batch {batch_num}", err=True)
         return
 
-    # Combine diffs for this batch
     combined_diff = "\n".join(all_diffs[f] for f in files if f in all_diffs)
 
-    # Generate commit message
     with Halo(text="Generating commit message...", spinner="dots") as spinner:
         message = generate_batch_commit_message(reason, combined_diff)
         spinner.stop()
 
     typer.echo(f"Commit message: {message}")
 
-    # Commit
     with Halo(text="Committing...", spinner="dots") as spinner:
         success = commit_with_message(message)
         spinner.stop()

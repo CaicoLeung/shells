@@ -3,7 +3,7 @@
 import typer
 from halo import Halo
 
-from .git import get_git_status, stage_files, commit_with_message, get_unstaged_diffs, FileChange
+from .git import get_git_status, stage_files, commit_with_message, get_unstaged_diffs, get_staged_diffs, FileChange
 from .generator import generate_commit_message, create_batch_plan, generate_batch_commit_message, CommitBatch
 
 app = typer.Typer(help="Generate Conventional Commits using AI")
@@ -44,11 +44,14 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
     # Get combined diff of all staged changes
     paths = [c.path for c in staged_changes]
 
-    with Halo(text="Analyzing changes...", spinner="dots") as spinner:
+    with Halo(text="Analyzing staged changes...", spinner="dots") as spinner:
+        # Get actual staged diffs for the LLM
+        diffs = get_staged_diffs(paths)
+
         # Build combined diff message for LLM
-        diff_summary = f"Staged files: {', '.join(paths)}\n"
-        for change in staged_changes:
-            diff_summary += f"- {change.path} ({change.change_type.value})\n"
+        diff_summary = f"Staged files: {', '.join(paths)}\n\n"
+        diff_summary += "Diffs:\n"
+        diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
 
         spinner.stop()
         typer.echo(f"\nFound {len(staged_changes)} staged change(s)")
@@ -149,6 +152,7 @@ def _process_batch(
         typer.echo(f"✓ Batch {batch_num} committed successfully")
     else:
         typer.echo(f"✗ Batch {batch_num} commit failed", err=True)
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

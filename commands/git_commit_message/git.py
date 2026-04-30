@@ -198,6 +198,24 @@ def get_unstaged_diffs(file_paths: List[str]) -> dict[str, str]:
     return diffs
 
 
+def get_staged_diffs(file_paths: List[str]) -> dict[str, str]:
+    """Get diffs for multiple staged files.
+
+    Args:
+        file_paths: List of file paths to get diffs for
+
+    Returns:
+        Dictionary mapping file paths to their staged diff strings
+    """
+    diffs = {}
+
+    for file_path in file_paths:
+        diff = get_file_diff(file_path, staged=True)
+        diffs[file_path] = diff
+
+    return diffs
+
+
 def commit_with_message(message: str) -> bool:
     """Commit staged changes with the given message.
 

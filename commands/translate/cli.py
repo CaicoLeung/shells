@@ -1,4 +1,5 @@
 import typer
+from halo import Halo
 
 from libs.llm import LLM, GenerationResult
 
@@ -16,7 +17,10 @@ def translate(text: str) -> GenerationResult:
 def main(
     text: str = typer.Argument(..., help="Text to translate"),
 ) -> None:
+    spinner = Halo(text="Thinking...", spinner="dots")
+    spinner.start()
     result = translate(text)
+    spinner.stop()
     print(result.content)  # newline after streaming output
     print(result.format_footer())
 

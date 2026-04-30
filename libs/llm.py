@@ -1,12 +1,16 @@
 import os
-import openai
+from collections.abc import Iterable
 from dataclasses import dataclass
+
+import openai
 from halo import Halo
+from openai.types.chat import ChatCompletionMessageParam
 
 
 @dataclass
 class GenerationResult:
     """LLM generation result with metadata."""
+
     content: str
     model: str
     prompt_tokens: int
@@ -35,38 +39,25 @@ class LLM:
     def generate_text(self, prompt: str) -> GenerationResult:
         model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
 
-        messages = [
+        messages: Iterable[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": prompt},
         ]
 
-        spinner = Halo(text="Thinking...", spinner="dots")
-        spinner.start()
-        first_chunk = True
-
-        try:
-            with self.client.chat.completions.stream(
-                model=model,
-                messages=messages,
-            ) as stream:
-                for event in stream:
-                    if event.type == 'content.delta':
-                        if first_chunk:
-                            spinner.stop()
-                            first_chunk = False
-                        print(event.delta, end="", flush=True)
-        finally:
-            # Ensure spinner is stopped even if no content was received
-            if not first_chunk:
-                spinner.clear()  # Clear the spinner line if content was printed
-            else:
-                spinner.stop()
+        with self.client.chat.completions.stream(
+            model=model,
+            messages=messages,
+        ) as stream:
+            for event in stream:
+                if event.type == "content.delta":
+                    print(event.delta, end="", flush=True)
 
         final = stream.get_final_completion()
+        usage = final.usage
         return GenerationResult(
             content=final.choices[0].message.content or "",
             model=final.model,
-            prompt_tokens=final.usage.prompt_tokens,
-            completion_tokens=final.usage.completion_tokens,
-            total_tokens=final.usage.total_tokens,
+            prompt_tokens=usage.prompt_tokens if usage else 0,
+            completion_tokens=usage.completion_tokens if usage else 0,
+            total_tokens=usage.total_tokens if usage else 0,
         )

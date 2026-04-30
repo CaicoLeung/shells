@@ -19,16 +19,18 @@ class ChangeType(Enum):
     - R: Renamed
     - C: Copied
     """
-    ADDED = 'A'
-    MODIFIED = 'M'
-    DELETED = 'D'
-    RENAMED = 'R'
-    COPIED = 'C'
+
+    ADDED = "A"
+    MODIFIED = "M"
+    DELETED = "D"
+    RENAMED = "R"
+    COPIED = "C"
 
 
 @dataclass(frozen=True)
 class FileChange:
     """Represents a single file change in git."""
+
     path: str
     change_type: ChangeType
     is_staged: bool
@@ -37,6 +39,7 @@ class FileChange:
 @dataclass(frozen=True)
 class GitStatus:
     """Represents the current git status."""
+
     staged: list[FileChange]
     unstaged: list[FileChange]
 
@@ -53,16 +56,11 @@ def _run_git_command(args: list[str]) -> str:
     Raises:
         RuntimeError: If git command fails
     """
-    result = subprocess.run(
-        ['git'] + args,
-        capture_output=True,
-        text=True,
-        check=False
-    )
+    result = subprocess.run(["git"] + args, capture_output=True, text=True, check=False)
 
     if result.returncode != 0:
         stderr_lower = result.stderr.lower()
-        if 'not a git repository' in stderr_lower:
+        if "not a git repository" in stderr_lower:
             raise RuntimeError("Not a git repository")
         # Generic error for other git failures
         raise RuntimeError(f"Git command failed: {result.stderr.strip()}")
@@ -89,12 +87,12 @@ def _parse_git_status_output(output: str, is_staged: bool) -> list[FileChange]:
 
     changes: list[FileChange] = []
 
-    for line in output.strip().split('\n'):
+    for line in output.strip().split("\n"):
         if not line:
             continue
 
         # Split on tab to separate status code(s) from path
-        parts = line.split('\t')
+        parts = line.split("\t")
         if len(parts) < 2:
             continue
 
@@ -110,11 +108,9 @@ def _parse_git_status_output(output: str, is_staged: bool) -> list[FileChange]:
             # If not a valid single-character code, skip this entry
             continue
 
-        changes.append(FileChange(
-            path=path,
-            change_type=change_type,
-            is_staged=is_staged
-        ))
+        changes.append(
+            FileChange(path=path, change_type=change_type, is_staged=is_staged)
+        )
 
     return changes
 
@@ -126,18 +122,18 @@ def get_git_status() -> GitStatus:
         GitStatus object containing staged and unstaged file changes
     """
     # Get staged changes
-    staged_output = _run_git_command(['diff', '--staged', '--name-status'])
+    staged_output = _run_git_command(["diff", "--staged", "--name-status"])
     staged = _parse_git_status_output(staged_output, is_staged=True)
 
     # Get unstaged changes (modified tracked files)
-    unstaged_output = _run_git_command(['diff', '--name-status'])
+    unstaged_output = _run_git_command(["diff", "--name-status"])
     unstaged = _parse_git_status_output(unstaged_output, is_staged=False)
 
     # Get untracked files (new files not yet staged)
-    untracked_output = _run_git_command(['ls-files', '--others', '--exclude-standard'])
+    untracked_output = _run_git_command(["ls-files", "--others", "--exclude-standard"])
     untracked = [
         FileChange(path=path.strip(), change_type=ChangeType.ADDED, is_staged=False)
-        for path in untracked_output.strip().split('\n')
+        for path in untracked_output.strip().split("\n")
         if path.strip()
     ]
 
@@ -160,10 +156,7 @@ def stage_files(file_paths: list[str]) -> bool:
         return False
 
     result = subprocess.run(
-        ['git', 'add'] + file_paths,
-        capture_output=True,
-        text=True,
-        check=False
+        ["git", "add"] + file_paths, capture_output=True, text=True, check=False
     )
 
     return result.returncode == 0
@@ -179,10 +172,10 @@ def get_file_diff(file_path: str, staged: bool = False) -> str:
     Returns:
         The diff output as a string, or empty string if no diff
     """
-    args = ['diff']
+    args = ["diff"]
     if staged:
-        args.append('--staged')
-    args.extend(['--', file_path])
+        args.append("--staged")
+    args.extend(["--", file_path])
 
     return _run_git_command(args)
 
@@ -200,10 +193,10 @@ def get_diffs(file_paths: list[str], staged: bool = False) -> dict[str, str]:
     if not file_paths:
         return {}
 
-    args = ['diff']
+    args = ["diff"]
     if staged:
-        args.append('--staged')
-    args.extend(['--'] + file_paths)
+        args.append("--staged")
+    args.extend(["--"] + file_paths)
 
     output = _run_git_command(args)
     return _parse_multi_file_diff(output)
@@ -222,20 +215,20 @@ def _parse_multi_file_diff(output: str) -> dict[str, str]:
     current_file: str | None = None
     current_diff_lines: list[str] = []
 
-    for line in output.split('\n'):
-        if line.startswith('diff --git '):
+    for line in output.split("\n"):
+        if line.startswith("diff --git "):
             if current_file:
-                diffs[current_file] = '\n'.join(current_diff_lines).rstrip()
+                diffs[current_file] = "\n".join(current_diff_lines).rstrip()
 
             parts = line.split()
             if len(parts) >= 3:
-                current_file = parts[2][2:] if parts[2].startswith('a/') else parts[2]
+                current_file = parts[2][2:] if parts[2].startswith("a/") else parts[2]
                 current_diff_lines = []
         elif current_file is not None:
             current_diff_lines.append(line)
 
     if current_file:
-        diffs[current_file] = '\n'.join(current_diff_lines).rstrip()
+        diffs[current_file] = "\n".join(current_diff_lines).rstrip()
 
     return diffs
 
@@ -253,10 +246,7 @@ def commit_with_message(message: str) -> bool:
         return False
 
     result = subprocess.run(
-        ['git', 'commit', '-m', message],
-        capture_output=True,
-        text=True,
-        check=False
+        ["git", "commit", "-m", message], capture_output=True, text=True, check=False
     )
 
     return result.returncode == 0

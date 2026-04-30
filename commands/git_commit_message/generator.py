@@ -20,6 +20,7 @@ JSON_KEY_BATCHES = "batches"
 @dataclass(frozen=True)
 class CommitBatch:
     """A batch of files to commit together."""
+
     files: list[str]
     reason: str
 
@@ -27,6 +28,7 @@ class CommitBatch:
 @dataclass(frozen=True)
 class BatchPlan:
     """Plan for committing unstaged changes in batches."""
+
     batches: list[CommitBatch]
 
 
@@ -47,7 +49,9 @@ def create_batch_plan(diffs: dict[str, str]) -> BatchPlan:
 
     files_summary = []
     for path, diff in diffs.items():
-        preview = diff[:DIFF_PREVIEW_LENGTH] if len(diff) > DIFF_PREVIEW_LENGTH else diff
+        preview = (
+            diff[:DIFF_PREVIEW_LENGTH] if len(diff) > DIFF_PREVIEW_LENGTH else diff
+        )
         files_summary.append(f"File: {path}\nDiff preview:\n{preview}\n")
 
     input_text = (
@@ -70,7 +74,11 @@ def create_batch_plan(diffs: dict[str, str]) -> BatchPlan:
         return BatchPlan(batches=batches)
     except json.JSONDecodeError as e:
         logging.warning(f"Failed to parse batch plan JSON: {e}. Using fallback.")
-        return BatchPlan(batches=[CommitBatch(files=list(diffs.keys()), reason=FALLBACK_BATCH_REASON)])
+        return BatchPlan(
+            batches=[
+                CommitBatch(files=list(diffs.keys()), reason=FALLBACK_BATCH_REASON)
+            ]
+        )
 
 
 def generate_batch_commit_message(reason: str, combined_diff: str) -> str:

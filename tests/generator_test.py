@@ -1,10 +1,8 @@
-import pytest
 from commands.git_commit_message.generator import (
     generate_commit_message,
     BatchPlan,
     create_batch_plan,
 )
-from commands.git_commit_message.git import FileChange, ChangeType
 
 
 def test_generate_commit_message_returns_conventional_format():
@@ -19,7 +17,9 @@ def test_generate_commit_message_returns_conventional_format():
 
 
 def test_generate_commit_message_for_feature_addition():
-    diff = "diff --git a/test.py b/test.py\n+ def authenticate_user():\n+     return True"
+    diff = (
+        "diff --git a/test.py b/test.py\n+ def authenticate_user():\n+     return True"
+    )
     result = generate_commit_message(diff)
     assert result is not None
     assert len(result) > 0

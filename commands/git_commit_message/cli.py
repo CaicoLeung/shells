@@ -4,14 +4,21 @@ import typer
 
 from libs.spinner import spinner
 from .git import get_git_status, stage_files, commit_with_message, get_diffs, FileChange
-from .generator import generate_commit_message, create_batch_plan, generate_batch_commit_message, CommitBatch
+from .generator import (
+    generate_commit_message,
+    create_batch_plan,
+    generate_batch_commit_message,
+    CommitBatch,
+)
 
 app = typer.Typer(help="Generate Conventional Commits using AI")
 
 
 @app.command()
 def main(
-    dry_run: bool = typer.Option(False, '--dry-run', '-n', help='Show what would be committed without committing'),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-n", help="Show what would be committed without committing"
+    ),
 ) -> None:
     """Generate and commit changes with AI-generated commit messages.
 
@@ -54,7 +61,9 @@ def _handle_staged_changes(staged_changes: list[FileChange], dry_run: bool) -> N
 
     diff_summary = f"Staged files: {', '.join(paths)}\n\n"
     diff_summary += "Diffs:\n"
-    diff_summary += "\n".join(f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip())
+    diff_summary += "\n".join(
+        f"--- {path} ---\n{diff}" for path, diff in diffs.items() if diff.strip()
+    )
 
     typer.echo(f"\nFound {len(staged_changes)} staged change(s)")
 
@@ -108,10 +117,7 @@ def _handle_unstaged_changes(unstaged_changes: list[FileChange], dry_run: bool) 
 
 
 def _process_batch(
-    batch_num: int,
-    batch: CommitBatch,
-    all_diffs: dict[str, str],
-    dry_run: bool
+    batch_num: int, batch: CommitBatch, all_diffs: dict[str, str], dry_run: bool
 ) -> None:
     """Process a single batch of changes.
 

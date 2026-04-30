@@ -133,9 +133,20 @@ def get_git_status() -> GitStatus:
     staged_output = _run_git_command(['diff', '--staged', '--name-status'])
     staged = _parse_git_status_output(staged_output, is_staged=True)
 
-    # Get unstaged changes
+    # Get unstaged changes (modified tracked files)
     unstaged_output = _run_git_command(['diff', '--name-status'])
     unstaged = _parse_git_status_output(unstaged_output, is_staged=False)
+
+    # Get untracked files (new files not yet staged)
+    untracked_output = _run_git_command(['ls-files', '--others', '--exclude-standard'])
+    untracked = [
+        FileChange(path=path.strip(), change_type=ChangeType.ADDED, is_staged=False)
+        for path in untracked_output.strip().split('\n')
+        if path.strip()
+    ]
+
+    # Merge unstaged tracked changes with untracked files
+    unstaged.extend(untracked)
 
     return GitStatus(staged=staged, unstaged=unstaged)
 

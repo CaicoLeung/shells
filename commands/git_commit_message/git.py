@@ -63,7 +63,7 @@ def _run_git_command(args: List[str]) -> str:
         The stdout output from the git command as a string
 
     Raises:
-        subprocess.CalledProcessError: If git returns a non-zero exit code
+        RuntimeError: If git reports it's not a repository
     """
     result = subprocess.run(
         ['git'] + args,
@@ -71,7 +71,9 @@ def _run_git_command(args: List[str]) -> str:
         text=True,
         check=False
     )
-    return result.stdout
+    if result.returncode != 0 and 'not a git repository' in result.stderr.lower():
+        raise RuntimeError("Not a git repository")
+    return result.stdout.strip()
 
 
 def _parse_git_status_output(output: str, is_staged: bool) -> List[FileChange]:

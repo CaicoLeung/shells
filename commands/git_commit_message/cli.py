@@ -21,7 +21,13 @@ def main(
     spinner = Halo(text="Checking git status...", spinner="dots")
     spinner.start()
 
-    status = get_git_status()
+    try:
+        status = get_git_status()
+    except RuntimeError as e:
+        spinner.stop()
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
     spinner.stop()
 
     # Case 1: We have staged changes - commit them directly

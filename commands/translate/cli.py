@@ -1,6 +1,8 @@
-from libs.llm import LLM, GenerationResult
-from .prompt import prompt
 import typer
+
+from libs.llm import LLM, GenerationResult
+
+from .prompt import prompt
 
 app = typer.Typer(help="Translate text between English and Chinese")
 
@@ -15,7 +17,7 @@ def main(
     text: str = typer.Argument(..., help="Text to translate"),
 ) -> None:
     result = translate(text)
-    print()  # newline after streaming output
+    print(result.content)  # newline after streaming output
     print(result.format_footer())
 
 

@@ -1,15 +1,14 @@
-import os
+"""LLM client wrapper for OpenAI API."""
+
 from collections.abc import Iterable
 from dataclasses import dataclass
 
 import openai
-from halo import Halo
 from openai.types.chat import ChatCompletionMessageParam
 
-spinner = Halo(text="", spinner="dots")
+from .config import get_settings
 
-
-__all__ = ["LLM", "GenerationResult", "spinner"]
+__all__ = ["LLM", "GenerationResult"]
 
 
 @dataclass
@@ -37,20 +36,54 @@ class GenerationResult:
 
 
 class LLM:
+    """OpenAI LLM client with streaming support."""
+
     def __init__(self, system_prompt: str) -> None:
-        self.client = openai.OpenAI()
+        """Initialize the LLM client.
+
+        Args:
+            system_prompt: The system prompt to use for all requests
+        """
+        self._client: openai.OpenAI | None = None
         self.system_prompt = system_prompt
+        self._settings = get_settings()
+
+    @property
+    def client(self) -> openai.OpenAI:
+        """Lazy-initialize the OpenAI client.
+
+        Returns:
+            The OpenAI client instance
+        """
+        if self._client is None:
+            self._client = openai.OpenAI(api_key=self._settings.openai_api_key)
+        return self._client
+
+    @property
+    def model(self) -> str:
+        """Get the model name from settings.
+
+        Returns:
+            The OpenAI model identifier
+        """
+        return self._settings.openai_model
 
     def generate_text(self, prompt: str) -> GenerationResult:
-        model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
+        """Generate text using the LLM.
 
+        Args:
+            prompt: The user prompt to send
+
+        Returns:
+            GenerationResult containing the generated text and metadata
+        """
         messages: Iterable[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": prompt},
         ]
 
         with self.client.chat.completions.stream(
-            model=model,
+            model=self.model,
             messages=messages,
         ) as stream:
             final = stream.get_final_completion()
@@ -62,3 +95,17 @@ class LLM:
                 completion_tokens=usage.completion_tokens if usage else 0,
                 total_tokens=usage.total_tokens if usage else 0,
             )
+
+    def close(self) -> None:
+        """Close the OpenAI client."""
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+
+    def __enter__(self) -> "LLM":
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Context manager exit with cleanup."""
+        self.close()

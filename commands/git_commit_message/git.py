@@ -7,7 +7,6 @@ supporting status checking, staging, and committing operations.
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
 
 
 class ChangeType(Enum):
@@ -29,13 +28,7 @@ class ChangeType(Enum):
 
 @dataclass(frozen=True)
 class FileChange:
-    """Represents a single file change in git.
-
-    Attributes:
-        path: The file path relative to git root
-        change_type: The type of change (added, modified, deleted, etc.)
-        is_staged: Whether the change is staged for commit
-    """
+    """Represents a single file change in git."""
     path: str
     change_type: ChangeType
     is_staged: bool
@@ -43,17 +36,12 @@ class FileChange:
 
 @dataclass(frozen=True)
 class GitStatus:
-    """Represents the current git status.
-
-    Attributes:
-        staged: List of staged file changes
-        unstaged: List of unstaged file changes
-    """
-    staged: List[FileChange]
-    unstaged: List[FileChange]
+    """Represents the current git status."""
+    staged: list[FileChange]
+    unstaged: list[FileChange]
 
 
-def _run_git_command(args: List[str]) -> str:
+def _run_git_command(args: list[str]) -> str:
     """Run a git command via subprocess and return stdout.
 
     Args:
@@ -76,7 +64,7 @@ def _run_git_command(args: List[str]) -> str:
     return result.stdout.strip()
 
 
-def _parse_git_status_output(output: str, is_staged: bool) -> List[FileChange]:
+def _parse_git_status_output(output: str, is_staged: bool) -> list[FileChange]:
     """Parse git diff --name-status output into FileChange objects.
 
     Git output format is typically:
@@ -93,7 +81,7 @@ def _parse_git_status_output(output: str, is_staged: bool) -> List[FileChange]:
     if not output.strip():
         return []
 
-    changes: List[FileChange] = []
+    changes: list[FileChange] = []
 
     for line in output.strip().split('\n'):
         if not line:
@@ -153,7 +141,7 @@ def get_git_status() -> GitStatus:
     return GitStatus(staged=staged, unstaged=unstaged)
 
 
-def stage_files(file_paths: List[str]) -> bool:
+def stage_files(file_paths: list[str]) -> bool:
     """Stage files via git add.
 
     Args:
@@ -193,38 +181,55 @@ def get_file_diff(file_path: str, staged: bool = False) -> str:
     return _run_git_command(args)
 
 
-def get_unstaged_diffs(file_paths: List[str]) -> dict[str, str]:
-    """Get diffs for multiple unstaged files.
+def get_diffs(file_paths: list[str], staged: bool = False) -> dict[str, str]:
+    """Get diffs for multiple files in a single git command.
 
     Args:
         file_paths: List of file paths to get diffs for
+        staged: If True, get staged diffs; otherwise get unstaged diffs
 
     Returns:
         Dictionary mapping file paths to their diff strings
     """
-    diffs = {}
+    if not file_paths:
+        return {}
 
-    for file_path in file_paths:
-        diff = get_file_diff(file_path, staged=False)
-        diffs[file_path] = diff
+    args = ['diff']
+    if staged:
+        args.append('--staged')
+    args.extend(['--'] + file_paths)
 
-    return diffs
+    output = _run_git_command(args)
+    return _parse_multi_file_diff(output)
 
 
-def get_staged_diffs(file_paths: List[str]) -> dict[str, str]:
-    """Get diffs for multiple staged files.
+def _parse_multi_file_diff(output: str) -> dict[str, str]:
+    """Parse multi-file diff output into a dictionary.
 
-    Args:
-        file_paths: List of file paths to get diffs for
-
-    Returns:
-        Dictionary mapping file paths to their staged diff strings
+    Git diff output format uses file headers like:
+    diff --git a/path/to/file b/path/to/file
     """
-    diffs = {}
+    if not output:
+        return {}
 
-    for file_path in file_paths:
-        diff = get_file_diff(file_path, staged=True)
-        diffs[file_path] = diff
+    diffs: dict[str, str] = {}
+    current_file: str | None = None
+    current_diff_lines: list[str] = []
+
+    for line in output.split('\n'):
+        if line.startswith('diff --git '):
+            if current_file:
+                diffs[current_file] = '\n'.join(current_diff_lines).rstrip()
+
+            parts = line.split()
+            if len(parts) >= 3:
+                current_file = parts[2][2:] if parts[2].startswith('a/') else parts[2]
+                current_diff_lines = []
+        elif current_file is not None:
+            current_diff_lines.append(line)
+
+    if current_file:
+        diffs[current_file] = '\n'.join(current_diff_lines).rstrip()
 
     return diffs
 

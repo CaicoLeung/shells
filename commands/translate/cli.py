@@ -3,8 +3,6 @@
 import typer
 
 from libs.llm import LLM, GenerationResult
-from libs.spinner import spinner
-
 from .prompt import prompt
 
 app = typer.Typer(help="Translate text between English and Chinese")
@@ -32,8 +30,7 @@ def main(
     Args:
         text: The text to translate
     """
-    with spinner("Thinking..."):
-        result = translate(text)
+    result = translate(text)
 
     typer.echo(result.content)  # newline after streaming output
     typer.echo(result.format_footer())
